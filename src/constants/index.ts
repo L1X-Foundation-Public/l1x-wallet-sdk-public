@@ -1,0 +1,28 @@
+export const CLUSTER_TYPE = {
+    MAINNET: "mainnet",
+    TESTNET: "testnet"
+}
+
+export const DEFAULT_CLUSTER_ADDRESS = {
+    MAINNET: "0101010101010101010101010101010101010101",
+    TESTNET: "0101010101010101010101010101010101010101"
+}
+
+export const DEFAULT_CLUSTER_ENDPOINT = {
+    MAINNET: "http://52.62.71.83:50051",
+    TESTNET: "http://3.104.231.143:50051"
+}
+
+// TODO : Need to Make different for Network 
+export const DEFAULT_BASE_CONTRACT_ADDRESS = {
+    MAINNET: {
+        FT: "4b18a1b7684379409576e04226f9d8a6e802e7ef",
+        NFT: "166291c403d1420d2cdbb8e645a2f0b810318863",
+    },
+    TESTNET: {
+        FT: "9d33e5b6921c4776ee20d364c7ce8a4627557a2e",
+        NFT: "49e44ed0266849192f37d8542232f3719497e0ba",
+    }
+}
+
+export const L1X_NATIVE_COIN_DECIMAL = 18
