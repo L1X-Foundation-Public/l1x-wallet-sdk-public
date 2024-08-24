@@ -115,6 +115,24 @@ class L1XWalletService {
     // Use the secp256k1 library to verify the signature
     return secp256k1.ecdsaVerify(signatureByteArray,payloadByteArray,publicKeyByteArray);
   }
+
+  /**
+   * Converts a public key to an address.
+   * 
+   * @param {string} publicKey - The public key to be converted to an address.
+   * @returns {Promise<string>} - A promise that resolves to the address derived from the public key.
+   * @see {@link strToUint8Array}
+   * @see {@link keccak256}
+  */
+
+  async publicKeyToAddress(publicKey: string) : Promise<string> {
+    const publicKeyBuffer = strToUint8Array(publicKey);
+    const publicKeyUnCompressed = Buffer.from(secp256k1.publicKeyConvert(publicKeyBuffer, false)).subarray(1)
+    const publicKeyHash = keccak256.arrayBuffer(publicKeyUnCompressed);
+
+    const address = Buffer.from(publicKeyHash.slice(-20)).toString("hex");
+    return "0x"+address;
+  }
 }
 
 export default L1XWalletService;

@@ -3,10 +3,10 @@ import JSONRPCLib from "../lib/JSONRPCLib.ts";
 import L1XWalletService from "./L1XWalletService.ts";
 import L1XCoreStubService from "./L1XCoreStubService.ts";
 import { convertToJSONString } from "../utils/json.ts";
-import { VMDeployArg, VMInitArg, VMReadOnlyCallArg, VMStateChangeCallArg } from "../types/method_request.ts";
+import { VMDeployArg, VMGetTransactionEventsArgs, VMInitArg, VMReadOnlyCallArg, VMStateChangeCallArg } from "../types/method_request.ts";
 import { hexToStr, strToHex, hexToPlainByteArray, uint8ArrayToPlainByteArray, remove0xPrefix } from "../utils/general.ts";
 import { SignedTransactionPayload, StateChangingFunctionCallResponse, TransactionResponse, VMDeployResponse, VMInitResponse } from "../types/method_response.ts";
-import { ProviderAttrib } from "../types/general.ts";
+import { ProviderAttrib, TxSmartContractDeploymentV2, TxSmartContractFunctionCallV2, TxSmartContractInitV2 } from "../types/general.ts";
 
 
 import * as ethers from "ethers";
@@ -121,12 +121,24 @@ class L1XVMService {
    */
   
   async getSignedPayloadForStateChangingFunctionCall(attrib: VMStateChangeCallArg) : Promise<SignedTransactionPayload>{
+    const tx: TxSmartContractFunctionCallV2 = {
+      contract_instance_address: attrib.attrib.contract_address,
+      function_name: attrib.attrib.function,
+      arguments: attrib.attrib.arguments,
+      deposit: Number(attrib.attrib.deposit) || 0,
+    };
 
     // Derive Wallet
     let walletService = new L1XWalletService();
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
+    const estimatedFeelimit = await this.#core.estimateFeelimit({
+      transaction: "SmartContractFunctionCall",
+      payload: tx,
+      private_key: remove0xPrefix(attrib.private_key),
+    });
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
+    let _txFeeLimit: number = attrib.fee_limit || parseFloat(estimatedFeelimit.fee) || 1;
+
     let _txNonce: number | null = attrib?.nonce || null;
 
     let _nextNonce = 1;
@@ -169,21 +181,24 @@ class L1XVMService {
 
     // Signature is Generated on different payload and request on another
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: {
         SmartContractFunctionCall: {
           contract_instance_address: hexToPlainByteArray(remove0xPrefix(attrib.attrib.contract_address)),
           function: hexToPlainByteArray(attrib.attrib.function),
           arguments: hexToPlainByteArray(attrib.attrib.arguments),
           // value: 0
+          deposit: tx.deposit.toString()
         },
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
+
+    const signpayloadstring = await walletService.signPayload(txPayloadForSignature, wallet.private_key);
 
     // Sign Payload
     let signature = uint8ArrayToPlainByteArray(
-      await walletService.signPayload(txPayloadForSignature, wallet.private_key)
+      signpayloadstring
     );
     let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
 
@@ -191,11 +206,12 @@ class L1XVMService {
       nonce: _nextNonce.toString(),
       transaction_type: {
         SmartContractFunctionCall: {
-          contract_address:
+          contract_instance_address:
             txPayloadForSignature["transaction_type"]["SmartContractFunctionCall"]["contract_instance_address"],
           function_name: txPayloadForSignature["transaction_type"]["SmartContractFunctionCall"]["function"],
           arguments: txPayloadForSignature["transaction_type"]["SmartContractFunctionCall"]["arguments"],
           // value:txPayloadForSignature["transaction_type"]["SmartContractFunctionCall"]["value"]
+          deposit: tx.deposit.toString()
         },
       },
       fee_limit: _txFeeLimit.toString(),
@@ -214,11 +230,21 @@ class L1XVMService {
    * @see {@link VMInitResponse}
    */
   async init(attrib: VMInitArg): Promise<VMInitResponse> {
+    const estimatedFeelimit = await this.#core.estimateFeelimit({
+      transaction: "SmartContractInit",
+      payload: {
+        contract_code_address: attrib.attrib.base_contract_address,
+        arguments: attrib.attrib.arguments,
+        deposit: attrib.attrib.deposit || 0,
+      },
+      private_key: remove0xPrefix(attrib.private_key),
+    });
+
     // Derive Wallet
     let walletService = new L1XWalletService();
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
+    let _txFeeLimit: number = Number(attrib?.fee_limit || estimatedFeelimit.fee || 1);
     let _txNonce: number | null = attrib?.nonce || null;
 
     let _nextNonce = 1;
@@ -252,15 +278,16 @@ class L1XVMService {
     let initParams = attrib.attrib.arguments == null ? {} : attrib.attrib.arguments;
 
     // let initPararm = '{\\"metadata\\":{\\"name\\":\\"EiL9eeL4\\",\\"symbol\\":\\"EiL9eeL4\\",\\"decimals\\":18},\\"account_ids\\":[\\"177f88827a0d1fb1f10c44743be61dada9fdb318\\"],\\"amounts\\":[\\"10000000000000000000000\\"]}';
-    let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+    let txPayloadForSignature = {
+      nonce: _nextNonce.toString(),
       transaction_type: {
-        SmartContractInit: [
-          hexToPlainByteArray(remove0xPrefix(attrib.attrib.base_contract_address)),
-          hexToPlainByteArray(strToHex(convertToJSONString(initParams))),
-        ],
+        SmartContractInit: {
+          contract_code_address: hexToPlainByteArray(remove0xPrefix(attrib.attrib.base_contract_address)),
+          arguments: hexToPlainByteArray(strToHex(convertToJSONString(initParams))),
+          deposit: (attrib.attrib.deposit || 0).toString()
+        },
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
 
     // Sign Payload
@@ -270,13 +297,14 @@ class L1XVMService {
     );
     let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
 
-    let response = await this.#client.request("submitTransaction", {
+    let response = await this.#client.request("submitTransactionV2", {
       request: {
         nonce: txPayloadForSignature["nonce"].toString(),
         transaction_type: {
           SmartContractInit: {
-            address: txPayloadForSignature["transaction_type"]["SmartContractInit"][0],
-            arguments: txPayloadForSignature["transaction_type"]["SmartContractInit"][1],
+            contract_code_address: txPayloadForSignature["transaction_type"]["SmartContractInit"].contract_code_address,
+            arguments: txPayloadForSignature["transaction_type"]["SmartContractInit"].arguments,
+            deposit: txPayloadForSignature.transaction_type.SmartContractInit.deposit.toString()
           },
         },
         fee_limit: txPayloadForSignature["fee_limit"].toString(),
@@ -292,15 +320,33 @@ class L1XVMService {
   }
 
   async deploy(attrib: VMDeployArg): Promise<VMDeployResponse> {
+    // Salt
+    let salt = "00000000000000000000000000000000";
+
+    const tx: TxSmartContractDeploymentV2 = {
+      access_type: attrib.attrib.access_type == 'PUBLIC' ? 1 : 0,
+      contract_type: 0,
+      contract_code: attrib.attrib.base_contract_bytes,
+      deposit: Number(attrib.attrib.deposit) || 0,
+      salt: salt,
+    };
+
     // Derive Wallet
     let walletService = new L1XWalletService();
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
+    const estimatedFeelimit =  await this.#core.estimateFeelimit({
+      transaction: "SmartContractDeployment",
+      payload: tx,
+      private_key: attrib.private_key,
+    });
 
-    let _txFeeLimit: number = attrib?.fee_limit || 0;
+    let _txFeeLimit: number = Number(attrib.fee_limit || parseFloat(estimatedFeelimit.fee) || 1);
     let _txFeeLimitStr: string = _txFeeLimit.toString();
 
     let _txNonce: number | null = attrib?.nonce || null;
     let _contractCode: Buffer = attrib?.attrib.base_contract_bytes ;
+    let _accessType: string = attrib?.attrib.access_type || "PRIVATE";
+    let _accessTypeNumeric = _accessType == "PRIVATE" ? 0 : 1;
     
     let _nextNonce = 1;
     let _nextNonceStr = _nextNonce.toString();
@@ -328,38 +374,36 @@ class L1XVMService {
       _nextNonceStr = _txNonce.toString();
     }
 
-    // Salt
-    let salt = "00000000000000000000000000000000";
-
     // Construct the transaction payload for the request
     let txPayloadForRequest: SignedTransactionPayload = {
-      nonce: _nextNonceStr,
+      nonce: _nextNonceStr.toString(),
       transaction_type: {
         SmartContractDeployment: {
-          access_type: 0,
+          access_type: _accessTypeNumeric,
           contract_type: 0,
           contract_code: uint8ArrayToPlainByteArray(_contractCode),
-          value: 0,
+          // value: 0,
+          deposit: tx.deposit.toString(),
           salt: hexToPlainByteArray(strToHex(salt))
         }
       },
-      fee_limit: _txFeeLimitStr,
+      fee_limit: _txFeeLimit.toString(),
       signature: [],
       verifying_key: [],
     };
 
     let transactionPayloadForSignature:SignedTransactionPayload  = JSON.parse(JSON.stringify(txPayloadForRequest));
-    transactionPayloadForSignature['transaction_type']['SmartContractDeployment']['access_type'] = "PRIVATE";
+    transactionPayloadForSignature['transaction_type']['SmartContractDeployment']['access_type'] = _accessType;
     transactionPayloadForSignature['transaction_type']['SmartContractDeployment']['contract_type'] = "L1XVM";
 
     // Construct the transaction payload for signature
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: transactionPayloadForSignature.transaction_type,
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
 
-    // console.log(JSON.stringify(txPayloadForSignature),"txPayloadForSignature");
+    // console.log(JSON.stringify(Object.keys(txPayloadForSignature.transaction_type.SmartContractDeployment)),"txPayloadForSignature");
 
 
     // Sign the payload
@@ -371,10 +415,14 @@ class L1XVMService {
       wallet.public_key_bytes
     );
 
+    txPayloadForRequest.transaction_type.SmartContractDeployment.deposit = txPayloadForRequest.transaction_type.SmartContractDeployment.deposit.toString();
+    txPayloadForRequest.nonce = txPayloadForRequest.nonce.toString();
+    txPayloadForRequest.fee_limit = txPayloadForRequest.fee_limit.toString();
+
     // console.log(JSON.stringify(txPayloadForRequest),"txPayloadForRequest");
 
-    let response = await this.#client.request("submitTransaction", {
-      request: txPayloadForRequest
+    let response = await this.#client.request("submitTransactionV2", {
+      request: txPayloadForRequest,
     });
 
     return {

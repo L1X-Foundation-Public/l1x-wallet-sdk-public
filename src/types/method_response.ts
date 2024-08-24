@@ -96,6 +96,9 @@ export interface FTTokenGetAllowanceResponse {
 export interface NFTTokenGetAttributeResponse {
   name: string;
   symbol: string;
+  icon: string;
+  uri: string;
+  decimals: number;
   total_minted: string;
 }
 
@@ -123,6 +126,10 @@ export interface NFTTokenOwnedTokensResponse {
 
 export interface NFTTokenOwnerOfResponse {
   owner_address: string;
+}
+
+export interface NFTTokenUriOfResponse {
+  token_uri: string;
 }
 
 

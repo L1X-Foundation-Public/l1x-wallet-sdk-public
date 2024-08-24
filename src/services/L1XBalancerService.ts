@@ -100,7 +100,7 @@ class L1XBalancerService {
     };
 
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: {
         SmartContractDeployment: [
           txPayloadForRequest.transaction_type['SmartContractDeployment'].access_type,
@@ -108,7 +108,7 @@ class L1XBalancerService {
           txPayloadForRequest.transaction_type['SmartContractDeployment'].contract_code,
         ],
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
 
   
@@ -265,7 +265,7 @@ class L1XBalancerService {
 
     // Signature is Generated on different payload and request on another
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: {
         SmartContractFunctionCall: {
           contract_instance_address: hexToPlainByteArray(remove0xPrefix(attrib.attrib.contract_address)),
@@ -274,7 +274,7 @@ class L1XBalancerService {
           // value: 0
         },
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
 
     // Sign Payload

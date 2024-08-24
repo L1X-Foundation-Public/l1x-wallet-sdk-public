@@ -1,6 +1,7 @@
 import JSONRPCLib from "../lib/JSONRPCLib.ts";
 import { ProviderAttrib } from "../types/index.ts";
 import L1XCoreStubService from "./L1XCoreStubService.ts";
+import L1XVMService from "./L1XVMService.ts";
 import L1XTokenFTService from "./tokens/L1XTokenFTService.ts";
 import L1XTokenNFTService from "./tokens/L1XTokenNFTService.ts";
 
@@ -40,10 +41,10 @@ class L1XTokenService {
    * @param {L1XCoreStubService} _core - The core service used for additional functionality.
    * @constructor
    */
-  constructor(_client: JSONRPCLib, _core: L1XCoreStubService,_options: ProviderAttrib) {
+  constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _vm: L1XVMService, _options: ProviderAttrib) {
     // Initialize the FT and NFT services
-    this.#FT = new L1XTokenFTService(_client, _core,_options);
-    this.#NFT = new L1XTokenNFTService(_client, _core,_options);
+    this.#FT = new L1XTokenFTService(_client, _core, _vm, _options);
+    this.#NFT = new L1XTokenNFTService(_client, _core, _vm, _options);
   }
 
   /**

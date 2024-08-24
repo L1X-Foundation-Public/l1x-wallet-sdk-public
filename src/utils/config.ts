@@ -19,7 +19,13 @@ export function getClusterProvider(_clusterOpts: ProviderAttrib): ClusterProvide
             clusterAddress: DEFAULT_CLUSTER_ADDRESS.TESTNET,
             endpoint: _clusterOpts.endpoint || DEFAULT_CLUSTER_ENDPOINT.TESTNET,
         };
-    } else {
+    } else if (_clusterOpts.clusterType === CLUSTER_TYPE.TESTNET) {
+        return {
+            clusterAddress: DEFAULT_CLUSTER_ADDRESS.DEVNET,
+            endpoint: _clusterOpts.endpoint || DEFAULT_CLUSTER_ENDPOINT.DEVNET,
+        };
+    } 
+    else {
         // Default to testnet if the cluster type is not recognized
         return {
             clusterAddress: DEFAULT_CLUSTER_ADDRESS.TESTNET,

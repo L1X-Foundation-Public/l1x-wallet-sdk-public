@@ -28,7 +28,6 @@ export function convertStringToJSON(_data:any): any{
     }
     catch(err)
     {
-        console.log("🚀 ~ file: json.ts:27 ~ convertStringToJSON ~ err:", err)
         return {};
     }
 }

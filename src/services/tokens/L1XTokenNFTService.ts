@@ -13,9 +13,12 @@ import {
   NFTTokenOwnerOfArg,
   NFTTokenPrepareQueryPayloadArg,
   NFTTokenTransferArg,
+  NFTTokenUriOfArg,
   ProviderAttrib,
   RawPayloadArg,
   RawTokenReadOnlyArg,
+  TxSmartContractFunctionCallV2,
+  TxSmartContractInitV2,
 } from "../../types/index.ts";
 import {
   NFTTokenApproveVMFunctionParams,
@@ -31,6 +34,7 @@ import {
   NFTTokenGetBalanceResponse,
   NFTTokenOwnedTokensResponse,
   NFTTokenOwnerOfResponse,
+  NFTTokenUriOfResponse,
   StateChangingFunctionCallResponse,
 } from "../../types/method_response.ts";
 import JSONRPCLib from "../../lib/JSONRPCLib.ts";
@@ -45,6 +49,7 @@ import { convertToJSONString } from "../../utils/json.ts";
 import { convertExponentialToString } from "../../utils/number.ts";
 import L1XCoreStubService from "../L1XCoreStubService.ts";
 import L1XWalletService from "../L1XWalletService.ts";
+import L1XVMService from "../L1XVMService.ts";
 
 /**
  * Represents a service for working with non-fungible tokens (NFTs).
@@ -59,6 +64,11 @@ class L1XTokenNFTService {
    * Represents an instance of the L1XCoreStubService, which provides access to core L1X functionality.
    */
   #core: L1XCoreStubService;
+
+  /**
+   * Represents an instance of the L1XVMService, which provides access to core L1X functionality.
+   */
+  #vm: L1XVMService;
 
   /**
    * Represents a default base contract address for non fungible tokens (NFT).
@@ -80,10 +90,11 @@ class L1XTokenNFTService {
    * @param _client - JSONRPC client.
    * @param _core - L1XCoreStubService instance.
    */
-  constructor(_client: JSONRPCLib, _core: L1XCoreStubService,_options: ProviderAttrib) {
+  constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _vm: L1XVMService,_options: ProviderAttrib) {
     this.#client = _client;
     this.#core = _core;
     this.#options = _options;
+    this.#vm = _vm;
 
     // Set NFT Address
 
@@ -185,6 +196,7 @@ class L1XTokenNFTService {
       let _params: NFTTokenMintToVMFunctionParams = {
         to: attrib.attrib.recipient_address,
         id: convertExponentialToString(attrib.attrib.token_id),
+        token_uri: attrib.attrib.token_uri
       };
 
       ftParams = _params;
@@ -197,73 +209,16 @@ class L1XTokenNFTService {
       ftParams = _params;
     }
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
-    let _nextNonce: number = 1;
-
-    // Get Current Nonce
-    try {
-      let currentNonce: number = await this.#core.getCurrentNonce({
-        address: wallet.address,
-      });
-
-      _nextNonce = currentNonce + 1;
-    } catch (e: any) {
-      // Default to 1
-      _nextNonce = 2;
-    }
-
-    // Signature is Generated on different payload and request on another
-    let txPayloadForSignature: any = {
-      nonce: _nextNonce,
-      transaction_type: {
-        SmartContractFunctionCall: {
-          contract_instance_address: hexToPlainByteArray(
-            attrib.attrib.contract_address
-          ),
-          function: hexToPlainByteArray(strToHex(functionName)),
-          arguments: hexToPlainByteArray(
-            strToHex(convertToJSONString(ftParams))
-          ),
-        },
+    return this.#vm.makeStateChangingFunctionCall({
+      attrib: {
+        contract_address: attrib.attrib.contract_address,
+        function: functionName,
+        arguments: ftParams,
+        deposit: 0,
+        is_argument_object: true
       },
-      fee_limit: _txFeeLimit,
-    };
-
-    // Sign Payload
-
-    let signature = uint8ArrayToPlainByteArray(
-      await walletService.signPayload(txPayloadForSignature, wallet.private_key)
-    );
-    let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
-
-    let response = await this.#client.request("submitTransaction", {
-      request: {
-        nonce: _nextNonce.toString(),
-        transaction_type: {
-          SmartContractFunctionCall: {
-            contract_address:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["contract_instance_address"],
-            function_name:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["function"],
-            arguments:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["arguments"],
-          },
-        },
-        fee_limit: _txFeeLimit.toString(),
-        signature: signature,
-        verifying_key: verifyingKey,
-      },
+      private_key: attrib.private_key
     });
-
-    return {
-      hash: this.#handleFallbackValue(response["hash"]),
-    };
   }
 
   /**
@@ -274,15 +229,21 @@ class L1XTokenNFTService {
   async getAttribute(
     attrib: NFTTokenGetAttributeArg
   ): Promise<NFTTokenGetAttributeResponse> {
-    let queryNamePayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
-      contract_address: remove0xPrefix(attrib.contract_address),
-      function: NFTReadOnlyFunction.NAME,
-      arguments: {},
-    });
+    // let queryNamePayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
+    //   contract_address: remove0xPrefix(attrib.contract_address),
+    //   function: NFTReadOnlyFunction.NAME,
+    //   arguments: {},
+    // });
 
-    let querySymbolPayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
+    // let querySymbolPayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
+    //   contract_address: remove0xPrefix(attrib.contract_address),
+    //   function: NFTReadOnlyFunction.SYMBOL,
+    //   arguments: {},
+    // });
+
+    let queryMetadataPayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
       contract_address: remove0xPrefix(attrib.contract_address),
-      function: NFTReadOnlyFunction.SYMBOL,
+      function: NFTReadOnlyFunction.METADATA,
       arguments: {},
     });
 
@@ -296,15 +257,23 @@ class L1XTokenNFTService {
     let _tokenAttribResponse: NFTTokenGetAttributeResponse = {
       name: "",
       symbol: "",
+      icon: "",
+      uri: "",
+      decimals: 0,
       total_minted: "",
     };
 
-    _tokenAttribResponse["name"] = await this.#makeReadOnlyCall(
-      queryNamePayload
-    );
-    _tokenAttribResponse["symbol"] = await this.#makeReadOnlyCall(
-      querySymbolPayload
-    );
+    let metadata: any = await this.#makeReadOnlyCall(
+      queryMetadataPayload
+    )
+
+    metadata = JSON.parse(metadata)
+
+    _tokenAttribResponse["name"] = metadata?.name;
+    _tokenAttribResponse["symbol"] = metadata?.symbol;
+    _tokenAttribResponse["icon"] = metadata?.icon;
+    _tokenAttribResponse["uri"] = metadata?.uri;
+    _tokenAttribResponse["decimals"] = metadata?.decimals;
 
     _tokenAttribResponse["total_minted"] = await this.#makeReadOnlyCall(
       queryTotalMintedPayload
@@ -360,15 +329,15 @@ class L1XTokenNFTService {
       token_ids: [],
     };
 
-    let _balanceResponse = await this.#makeReadOnlyCall(queryPayload);
-
+    let _balanceResponse: any = await this.#makeReadOnlyCall(queryPayload);
+    _balanceResponse = JSON.parse(_balanceResponse);
     console.log(_balanceResponse, "_balanceResponse");
 
-    return _tokenAttribResponse;
-
-    // _tokenAttribResponse["token_ids"] = _balanceResponse;
-
     // return _tokenAttribResponse;
+
+    _tokenAttribResponse["token_ids"] = _balanceResponse;
+
+    return _tokenAttribResponse;
   }
 
   /**
@@ -394,6 +363,33 @@ class L1XTokenNFTService {
     let _ownerOfResponse = await this.#makeReadOnlyCall(queryPayload);
 
     _tokenAttribResponse["owner_address"] = _ownerOfResponse;
+
+    return _tokenAttribResponse;
+  }
+
+  /**
+   * Gets the owner of a specific NFT token ID.
+   * @param attrib - Attributes for getting owner of an NFT.
+   * @returns Owner of the NFT token ID.
+   */
+  async getTokenUri(
+    attrib: NFTTokenUriOfArg
+  ): Promise<NFTTokenUriOfResponse> {
+    let queryPayload: RawTokenReadOnlyArg = this.#prepareQueryPayload({
+      contract_address: remove0xPrefix(attrib.contract_address),
+      function: NFTReadOnlyFunction.URI,
+      arguments: {
+        id: convertExponentialToString(attrib.token_id),
+      },
+    });
+
+    let _tokenAttribResponse: NFTTokenUriOfResponse = {
+      token_uri: "",
+    };
+
+    let _ownerOfResponse = await this.#makeReadOnlyCall(queryPayload);
+
+    _tokenAttribResponse["token_uri"] = _ownerOfResponse;
 
     return _tokenAttribResponse;
   }
@@ -436,6 +432,7 @@ class L1XTokenNFTService {
         contract_address: remove0xPrefix(attrib?.attrib?.contract_address),
         recipient_address: remove0xPrefix(attrib?.attrib?.recipient_address),
         token_id: attrib?.attrib?.token_id,
+        token_uri: attrib?.attrib?.token_uri
       },
       private_key:attrib?.private_key,
       fee_limit:attrib?.fee_limit
@@ -528,72 +525,25 @@ class L1XTokenNFTService {
     let walletService = new L1XWalletService();
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
-    let _nextNonce: number = 1;
-
-    // Get Current Nonce
-    try {
-      let currentNonce: number = await this.#core.getCurrentNonce({
-        address: wallet.address,
-      });
-
-      _nextNonce = currentNonce + 1;
-    } catch (e: any) {
-      // Default to 1
-      _nextNonce = 2;
-    }
-
     // Initialize Params
-
-    let ftParams = {
+    let nftParams = {
       metadata: {
-        name: attrib.attrib.name,
-        symbol: attrib.attrib.symbol,
+        name: attrib?.attrib?.name,
+        symbol: attrib?.attrib?.symbol,
+        icon: attrib?.attrib?.icon,
+        uri: attrib?.attrib?.uri,
         decimals: 18, // Hardcoded for now
       },
     };
 
-    // let initPararm = '{\\"metadata\\":{\\"name\\":\\"EiL9eeL4\\",\\"symbol\\":\\"EiL9eeL4\\",\\"decimals\\":18},\\"account_ids\\":[\\"177f88827a0d1fb1f10c44743be61dada9fdb318\\"],\\"amounts\\":[\\"10000000000000000000000\\"]}';
-    let txPayloadForSignature: any = {
-      nonce: _nextNonce,
-      transaction_type: {
-        SmartContractInit: [
-          hexToPlainByteArray(remove0xPrefix(attrib.attrib.baseContract)),
-          // hexToPlainByteArray(this.#defaultBaseContractAddress),
-          hexToPlainByteArray(strToHex(convertToJSONString(ftParams))),
-        ],
+    return this.#vm.init({
+      attrib: {
+        base_contract_address: attrib.attrib.baseContract,
+        arguments: nftParams,
+        deposit: 0
       },
-      fee_limit: _txFeeLimit,
-    };
-
-    // Sign Payload
-
-    let signature = uint8ArrayToPlainByteArray(
-      await walletService.signPayload(txPayloadForSignature, wallet.private_key)
-    );
-    let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
-
-    let response = await this.#client.request("submitTransaction", {
-      request: {
-        nonce: txPayloadForSignature["nonce"].toString(),
-        transaction_type: {
-          SmartContractInit: {
-            address:
-              txPayloadForSignature["transaction_type"]["SmartContractInit"][0],
-            arguments:
-              txPayloadForSignature["transaction_type"]["SmartContractInit"][1],
-          },
-        },
-        fee_limit: txPayloadForSignature["fee_limit"].toString(),
-        signature: signature,
-        verifying_key: verifyingKey,
-      },
+      private_key: attrib.private_key
     });
-
-    return {
-      contract_address: this.#handleFallbackValue(response["contract_address"]),
-      hash: this.#handleFallbackValue(response["hash"]),
-    };
   }
 }
 

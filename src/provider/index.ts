@@ -108,11 +108,6 @@ export default class L1XProvider {
     this.#core = new L1XCoreStubService(jsonRPCClient);
 
     /**
-     * Initializes the L1XTokenService instance for token-related operations using the JSON-RPC client and L1XCoreStubService instance.
-     */
-    this.#tokens = new L1XTokenService(jsonRPCClient, this.core, this.#options);
-
-    /**
      * Initializes the L1XWalletService instance for managing L1X wallet-related operations.
      */
     this.#wallet = new L1XWalletService();
@@ -121,6 +116,11 @@ export default class L1XProvider {
      * Initializes the L1XVMService instance for managing L1X VM operations.
      */
     this.#vm = new L1XVMService(jsonRPCClient, this.core, this.#options);
+
+    /**
+     * Initializes the L1XTokenService instance for token-related operations using the JSON-RPC client and L1XCoreStubService instance.
+     */
+    this.#tokens = new L1XTokenService(jsonRPCClient, this.core, this.vm, this.#options);
 
     this.#evm = new L1XEVMService(jsonRPCClient, this.core, this.#vm, this.#options);
 

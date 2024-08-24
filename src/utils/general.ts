@@ -85,3 +85,7 @@ export function remove0xPrefix(inputString: string) {
   }
   return inputString; // If there is no "0x" prefix, return the original string
 }
+
+export function isHexString(str: string) {
+  return /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
+}

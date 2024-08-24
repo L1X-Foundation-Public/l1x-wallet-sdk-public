@@ -6,7 +6,8 @@ export interface NFTTokenTransferFromVMFunctionParams{
 
 export interface NFTTokenMintToVMFunctionParams{
     to: string,
-    id: string
+    id: string,
+    token_uri: string
 }
 
 export interface NFTTokenBurnVMFunctionParams{

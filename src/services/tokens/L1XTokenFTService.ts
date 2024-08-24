@@ -45,7 +45,10 @@ import {
   FTReadOnlyFunction,
   FTStateChangingFunction,
   ProviderAttrib,
+  TxSmartContractFunctionCallV2,
+  TxSmartContractInitV2,
 } from "../../types/general.ts";
+import L1XVMService from "../L1XVMService.ts";
 
 /**
  * A service class for interacting with fungible token (FT) related functionality.
@@ -60,6 +63,11 @@ class L1XTokenFTService {
    * Represents an instance of the L1XCoreStubService, which provides access to core L1X functionality.
    */
   #core: L1XCoreStubService;
+
+  /**
+   * Represents an instance of the L1XVMService, which provides access to core L1X functionality.
+   */
+  #vm: L1XVMService;
 
   /**
    * Represents a default base contract address for fungible tokens (FT).
@@ -82,10 +90,11 @@ class L1XTokenFTService {
    * @param {JSONRPCLib} _client - The JSON-RPC client used for making requests.
    * @param {L1XCoreStubService} _core - The core service used for additional functionality.
    */
-  constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _options: ProviderAttrib) {
+  constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _vm: L1XVMService, _options: ProviderAttrib) {
     this.#client = _client;
     this.#core = _core;
     this.#options = _options;
+    this.#vm = _vm;
 
     // Set FT Address
 
@@ -191,74 +200,16 @@ class L1XTokenFTService {
       };
     }
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
-    let _nextNonce: number = 1;
-
-    // Get Current Nonce
-    try {
-      let currentNonce: number =
-        await this.#core.getCurrentNonce({
-          address: wallet.address,
-        });
-
-      _nextNonce = currentNonce + 1;
-    } catch (e: any) {
-      // Default to 1
-      _nextNonce = 2;
-    }
-
-    // Signature is Generated on different payload and request on another
-    let txPayloadForSignature: any = {
-      nonce: _nextNonce,
-      transaction_type: {
-        SmartContractFunctionCall: {
-          contract_instance_address: hexToPlainByteArray(
-            attrib.attrib.contract_address
-          ),
-          function: hexToPlainByteArray(strToHex(functionName)),
-          arguments: hexToPlainByteArray(
-            strToHex(convertToJSONString(ftParams))
-          ),
-        },
+    return this.#vm.makeStateChangingFunctionCall({
+      attrib: {
+        contract_address: attrib.attrib.contract_address,
+        function: functionName,
+        arguments: ftParams,
+        deposit: 0,
+        is_argument_object: true
       },
-      fee_limit: _txFeeLimit,
-    };
-
-    // Sign Payload
-
-    let signature = uint8ArrayToPlainByteArray(
-      await walletService.signPayload(txPayloadForSignature, wallet.private_key)
-    );
-    let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
-
-    let response = await this.#client.request("submitTransaction", {
-      request: {
-        nonce: _nextNonce.toString(),
-        transaction_type: {
-          SmartContractFunctionCall: {
-            contract_address:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["contract_instance_address"],
-            function_name:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["function"],
-            arguments:
-              txPayloadForSignature["transaction_type"][
-                "SmartContractFunctionCall"
-              ]["arguments"],
-          },
-        },
-        fee_limit: _txFeeLimit.toString(),
-        signature: signature,
-        verifying_key: verifyingKey,
-      },
+      private_key: attrib.private_key
     });
-
-    return {
-      hash: this.#handleFallbackValue(response["hash"]),
-    };
   }
 
   /**
@@ -499,8 +450,8 @@ class L1XTokenFTService {
       },
       private_key:attrib?.private_key,
       fee_limit:attrib?.fee_limit
-    }
-    
+    };
+
     return this.#makeStateChangingFunctionCall(
       FTStateChangingFunction.MINT,
       _attrib
@@ -518,24 +469,7 @@ class L1XTokenFTService {
     let walletService = new L1XWalletService();
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
 
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
-    let _nextNonce: number = 1;
-
-    // Get Current Nonce
-    try {
-      let currentNonce: number =
-        await this.#core.getCurrentNonce({
-          address: wallet.address,
-        });
-
-      _nextNonce = currentNonce + 1;
-    } catch (e: any) {
-      // Default to 1
-      _nextNonce = 2;
-    }
-
     // Initialize Params
-
     let ftParams = {
       metadata: {
         name: attrib.attrib.name,
@@ -546,47 +480,14 @@ class L1XTokenFTService {
       amounts: [convertExponentialToString(attrib.attrib.initial_supply)],
     };
 
-    // let initPararm = '{\\"metadata\\":{\\"name\\":\\"EiL9eeL4\\",\\"symbol\\":\\"EiL9eeL4\\",\\"decimals\\":18},\\"account_ids\\":[\\"177f88827a0d1fb1f10c44743be61dada9fdb318\\"],\\"amounts\\":[\\"10000000000000000000000\\"]}';
-    let txPayloadForSignature: any = {
-      nonce: _nextNonce,
-      transaction_type: {
-        SmartContractInit: [
-          hexToPlainByteArray(remove0xPrefix(remove0xPrefix(attrib.attrib.baseContract))),
-          // hexToPlainByteArray(this.#defaultBaseContractAddress),
-          hexToPlainByteArray(strToHex(convertToJSONString(ftParams))),
-        ],
+    return this.#vm.init({
+      attrib: {
+        base_contract_address: attrib.attrib.baseContract,
+        arguments: ftParams,
+        deposit: 0
       },
-      fee_limit: _txFeeLimit,
-    };
-
-    // Sign Payload
-
-    let signature = uint8ArrayToPlainByteArray(
-      await walletService.signPayload(txPayloadForSignature, wallet.private_key)
-    );
-    let verifyingKey = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
-
-    let response = await this.#client.request("submitTransaction", {
-      request: {
-        nonce: txPayloadForSignature["nonce"].toString(),
-        transaction_type: {
-          SmartContractInit: {
-            address:
-              txPayloadForSignature["transaction_type"]["SmartContractInit"][0],
-            arguments:
-              txPayloadForSignature["transaction_type"]["SmartContractInit"][1],
-          },
-        },
-        fee_limit: txPayloadForSignature["fee_limit"].toString(),
-        signature: signature,
-        verifying_key: verifyingKey,
-      },
+      private_key: attrib.private_key
     });
-
-    return {
-      contract_address: this.#handleFallbackValue(response["contract_address"]),
-      hash: this.#handleFallbackValue(response["hash"]),
-    };
   }
 }
 

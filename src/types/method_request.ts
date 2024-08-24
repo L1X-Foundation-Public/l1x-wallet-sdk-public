@@ -1,3 +1,5 @@
+import { L1XVMTransaction } from "./general.ts"
+
 export interface GetAccountStateArg {
     address: string
 }
@@ -160,7 +162,8 @@ export interface NFTTokenMintToArg {
     attrib: {
         contract_address: string,
         recipient_address: string,
-        token_id: number
+        token_id: number,
+        token_uri: string
     }
     private_key:string,
     fee_limit?:number
@@ -199,7 +202,9 @@ export interface NFTTokenCreateArg {
     attrib: {
         baseContract: string,
         name: string,
-        symbol: string
+        symbol: string,
+        icon?: string,
+        uri: string
     }
     private_key:string,
     fee_limit?:number
@@ -220,12 +225,18 @@ export interface NFTTokenOwnerOfArg {
     token_id: number
 }
 
+export interface NFTTokenUriOfArg {
+    contract_address: string,
+    token_id: number
+}
+
 
 
 export interface VMInitArg {
     attrib: {
         base_contract_address: string,
         arguments: Object,
+        deposit?: number
     }
     private_key:string,
     fee_limit?:number,
@@ -235,6 +246,8 @@ export interface VMInitArg {
 export interface VMDeployArg {
     attrib: {
         base_contract_bytes: Buffer,
+        access_type?: "PRIVATE" | "PUBLIC",
+        deposit?: number
     }
     private_key:string,
     fee_limit?:number,
@@ -246,7 +259,8 @@ export interface VMStateChangeCallArg {
         contract_address: string,
         function: string,
         arguments: any,
-        is_argument_object: Boolean
+        is_argument_object: Boolean,
+        deposit?: number
         
     }
     private_key:string,
@@ -260,6 +274,15 @@ export interface VMReadOnlyCallArg {
         function: string,
         arguments: Object,
     }
+}
+
+export interface VMGetTransactionEventsArgs {
+    tx_hash: string;
+    timestamp: number;
+}
+
+export interface VMGetTransactionEventsResponse {
+    events_data: []
 }
 
 export interface EVMDeployArg{
@@ -290,4 +313,10 @@ export interface EVMReadOnlyCallArg {
     }
     private_key:string,
     fee_limit?:number
+}
+
+export interface EstimateFeelimitArg<K extends keyof L1XVMTransaction> {
+    transaction: K;
+    payload: L1XVMTransaction[K];
+    private_key: string;
 }

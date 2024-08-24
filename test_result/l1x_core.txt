@@ -1,0 +1,69 @@
+
+● Testing L1X Core Features › L1XProvider v1.0.0 > getTransactionsByAccount › Should return list of transactions if all the values passed correctly
+
+account fetch error: Account may not exist: load_transaction_receipt_by_address: Invalid address - Database returned an error: The query is syntactically correct but invalid, Error message: Undefined column name address in table l1x.block_transaction
+
+  at new JSONRPCErrorException (node_modules/json-rpc-2.0/dist/models.js:55:28)
+  at JSONRPCClient.<anonymous> (node_modules/json-rpc-2.0/dist/client.js:115:66)
+  at step (node_modules/json-rpc-2.0/dist/client.js:33:23)
+  at Object.next (node_modules/json-rpc-2.0/dist/client.js:14:53)
+  at fulfilled (node_modules/json-rpc-2.0/dist/client.js:5:58)
+
+● Testing L1X Core Features › L1XProvider v1.0.0 > getTransactionsByAccount › Should return an empty array for invalid number of transactions
+
+account fetch error: Account may not exist: load_transaction_receipt_by_address: Invalid address - Database returned an error: The query is syntactically correct but invalid, Error message: Undefined column name address in table l1x.block_transaction
+
+  at new JSONRPCErrorException (node_modules/json-rpc-2.0/dist/models.js:55:28)
+  at JSONRPCClient.<anonymous> (node_modules/json-rpc-2.0/dist/client.js:115:66)
+  at step (node_modules/json-rpc-2.0/dist/client.js:33:23)
+  at Object.next (node_modules/json-rpc-2.0/dist/client.js:14:53)
+  at fulfilled (node_modules/json-rpc-2.0/dist/client.js:5:58)
+
+● Testing L1X Core Features › L1XProvider v1.0.0 > getTransactionReceipt › Should return correct response for valid transaction hash
+
+transaction receipt fetch error: Failed to load transaction receipt by hash afa7e2a6708db3d2cf09096769b6b28755d09023cc66d8815c2449318b8b6edf: No row for transaction hash [175, 167, 226, 166, 112, 141, 179, 210, 207, 9, 9, 103, 105, 182, 178, 135, 85, 208, 144, 35, 204, 102, 216, 129, 92, 36, 73, 49, 139, 139, 110, 223] found
+
+  at new JSONRPCErrorException (node_modules/json-rpc-2.0/dist/models.js:55:28)
+  at JSONRPCClient.<anonymous> (node_modules/json-rpc-2.0/dist/client.js:115:66)
+  at step (node_modules/json-rpc-2.0/dist/client.js:33:23)
+  at Object.next (node_modules/json-rpc-2.0/dist/client.js:14:53)
+  at fulfilled (node_modules/json-rpc-2.0/dist/client.js:5:58)
+
+● Testing L1X Core Features › L1XProvider v1.0.0 > transfer - (Native Coin Transfer) › Amount should get transferred successfully of all parameters passed correctly
+
+expect(received).toBeLessThan(expected)
+
+Expected: < 0
+Received:   0
+
+  342 |             });
+  343 |
+> 344 |             expect(parseInt(beforeTransfer.account_state.balance)).toBeLessThan(parseInt(afterTransfer.account_state.balance));
+      |                                                                    ^
+  345 |         });
+  346 |
+  347 |         it('Should throw an error for an invalid amount', async () => {
+
+  at __tests__/V1.0.0/l1x_core.test.ts:344:68
+  at fulfilled (__tests__/V1.0.0/l1x_core.test.ts:5:58)
+
+● Testing L1X Core Features › L1XProvider v1.0.0 > transfer - (Native Coin Transfer) › Should throw an error for an insuffient balance
+
+expect(received).rejects.toThrowError()
+
+Received promise resolved instead of rejected
+Resolved to value: {"hash": "8e59dbecf5f819bd5b3cbdb4fa7f1121628f7e8030b97a0ded49a8e7280fdd52"}
+
+  379 |
+  380 |         it('Should throw an error for an insuffient balance', async () => {
+> 381 |             await expect(async () => await l1xProvider.core.transfer({
+      |                   ^
+  382 |                 receipient_address: address,
+  383 |                 value: 1,
+  384 |                 private_key: no_balance_private_key
+
+  at expect (node_modules/expect/build/index.js:113:15)
+  at __tests__/V1.0.0/l1x_core.test.ts:381:19
+  at __tests__/V1.0.0/l1x_core.test.ts:8:71
+  at Object.<anonymous>.__awaiter (__tests__/V1.0.0/l1x_core.test.ts:4:12)
+  at Object.<anonymous> (__tests__/V1.0.0/l1x_core.test.ts:380:74)

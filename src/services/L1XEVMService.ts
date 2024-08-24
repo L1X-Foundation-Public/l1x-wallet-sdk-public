@@ -117,7 +117,7 @@ class L1XEVMService {
     };
 
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: {
         SmartContractDeployment: [
           txPayloadForRequest.transaction_type['SmartContractDeployment'].access_type,
@@ -125,7 +125,7 @@ class L1XEVMService {
           txPayloadForRequest.transaction_type['SmartContractDeployment'].contract_code,
         ],
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
 
   

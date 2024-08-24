@@ -257,4 +257,24 @@ header {
   font-size: 1rem;
   padding: 0 0.5rem;
 }
-</style></head><body><div class="jesthtml-content"><header><h1 id="title">Test Report</h1></header><div id="metadata-container"><div id="timestamp">Started: 2024-04-25 15:26:29</div><div id="summary"><div id="suite-summary"><div class="summary-total">Suites (1)</div><div class="summary-passed ">1 passed</div><div class="summary-failed  summary-empty">0 failed</div><div class="summary-pending  summary-empty">0 pending</div></div><div id="test-summary"><div class="summary-total">Tests (1)</div><div class="summary-passed ">1 passed</div><div class="summary-failed  summary-empty">0 failed</div><div class="summary-pending  summary-empty">0 pending</div></div></div></div><div id="suite-1" class="suite-container"><input id="collapsible-0" type="checkbox" class="toggle" checked="checked"/><label for="collapsible-0"><div class="suite-info"><div class="suite-path">/home/mavenik/Documents/Project-Blk/L1X-Core/l1x-wallet-sdk/__tests__/l1x_core.test.ts</div><div class="suite-time">2.45s</div></div></label><div class="suite-tests"><div class="test-result passed"><div class="test-info"><div class="test-suitename">Testing L1X Core Features &gt; L1XProvider v1.0.0 &gt; getAccountState</div><div class="test-title">Should return correct account details for correct wallet address</div><div class="test-status">passed</div><div class="test-duration">0.259s</div></div></div></div></div></div></body></html>
+</style></head><body><div class="jesthtml-content"><header><h1 id="title">Test Report</h1></header><div id="metadata-container"><div id="timestamp">Started: 2024-08-08 19:10:01</div><div id="summary"><div id="suite-summary"><div class="summary-total">Suites (1)</div><div class="summary-passed  summary-empty">0 passed</div><div class="summary-failed ">1 failed</div><div class="summary-pending  summary-empty">0 pending</div></div><div id="test-summary"><div class="summary-total">Tests (0)</div><div class="summary-passed  summary-empty">0 passed</div><div class="summary-failed  summary-empty">0 failed</div><div class="summary-pending  summary-empty">0 pending</div></div></div></div><div id="suite-1" class="suite-container"><input id="collapsible-0" type="checkbox" class="toggle" checked="checked"/><label for="collapsible-0"><div class="suite-info"><div class="suite-path">/home/tushar/Source/l1x-wallet-sdk/__tests__/l1x.test.ts</div><div class="suite-time">0s</div></div></label><div class="suite-tests"><div class="test-result failed"><div class="failureMessages suiteFailure"> <pre class="failureMsg">  ● Test suite failed to run
+
+    src/services/L1XTokenService.ts:45:16 - error TS2554: Expected 4 arguments, but got 3.
+
+    45     this.#FT = new L1XTokenFTService(_client, _core,_options);
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      src/services/tokens/L1XTokenFTService.ts:93:82
+        93   constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _vm: L1XVMService, _options: ProviderAttrib) {
+                                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~
+        An argument for '_options' was not provided.
+    src/services/L1XTokenService.ts:46:17 - error TS2554: Expected 4 arguments, but got 3.
+
+    46     this.#NFT = new L1XTokenNFTService(_client, _core,_options);
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      src/services/tokens/L1XTokenNFTService.ts:93:81
+        93   constructor(_client: JSONRPCLib, _core: L1XCoreStubService, _vm: L1XVMService,_options: ProviderAttrib) {
+                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~
+        An argument for '_options' was not provided.
+</pre></div></div></div></div></div></body></html>

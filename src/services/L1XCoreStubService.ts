@@ -2,6 +2,7 @@ import { keccak256 } from "js-sha3";
 
 import {
   ClusterProvider,
+  EstimateFeelimitArg,
   GetAccountStateArg,
   GetBlockByNumberArg,
   GetCurrentNonceArg,
@@ -9,9 +10,14 @@ import {
   GetStakeArg,
   GetTransactionReceiptArg,
   GetTransactionsByAccountArg,
+  L1XVMTransaction,
   NativeTokenTransferArg,
   RawPayloadArg,
+  TxNativeTokenTransfer,
+  TxSmartContractFunctionCallV2,
   ValueTransformOption,
+  VMGetTransactionEventsArgs,
+  VMGetTransactionEventsResponse,
 } from "../types/index.ts";
 
 import {
@@ -30,7 +36,9 @@ import {
   arrayToUint8Array,
   hexToPlainByteArray,
   hexToStr,
+  isHexString,
   remove0xPrefix,
+  strToHex,
   uint8ArrayToHex,
   uint8ArrayToPlainByteArray,
 } from "../utils/general.ts";
@@ -39,6 +47,7 @@ import L1XWalletService from "./L1XWalletService.ts";
 import { L1X_NATIVE_COIN_DECIMAL } from "../constants/index.ts";
 import { convertExponentialToString } from "../utils/number.ts";
 import { convertStringToJSON } from "../utils/json.ts";
+import { L1XTxService } from "./L1XTxService.ts";
 
 /**
  * Represents a service for interacting with L1X core functionality through JSON-RPC communication.
@@ -48,7 +57,7 @@ import { convertStringToJSON } from "../utils/json.ts";
  * @see {@link JSONRPCLib}
  * @see {@link L1XWalletService}
  */
-class L1XCoreStubService {
+class L1XCoreStubService extends L1XTxService {
   /**
    * The JSON-RPC client used for communication with the L1X core.
    */
@@ -65,6 +74,7 @@ class L1XCoreStubService {
    * @param {JSONRPCLib} _client - The JSON-RPC client for communication with the L1X core.
    */
   constructor(_client: JSONRPCLib) {
+    super();
     /**
      * Initializes the JSON-RPC client for L1X core communication.
      */
@@ -114,7 +124,9 @@ class L1XCoreStubService {
     }
 
     if (option == ValueTransformOption.BYTES_TO_JSON) {
-      return convertStringToJSON(hexToStr(uint8ArrayToHex(arrayToUint8Array(data))));
+      return convertStringToJSON(
+        hexToStr(uint8ArrayToHex(arrayToUint8Array(data)))
+      );
     }
     return data;
   }
@@ -129,78 +141,120 @@ class L1XCoreStubService {
   #handleTransactionTypeTransformation(transaction: any) {
     let transactionType = transaction["transaction"];
     if (transactionType["NativeTokenTransfer"]) {
-
-      transactionType["NativeTokenTransfer"]['address'] = this.#transformValue(transactionType["NativeTokenTransfer"]['address'],ValueTransformOption.BYTES_TO_HEX);
-    }
-    else if (transactionType["SmartContractDeployment"]) {
-      
+      transactionType["NativeTokenTransfer"]["address"] = this.#transformValue(
+        transactionType["NativeTokenTransfer"]["address"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
+    } else if (transactionType["SmartContractDeployment"]) {
       // access_type
-      switch(transactionType["SmartContractDeployment"]['access_type']){
+      switch (transactionType["SmartContractDeployment"]["access_type"]) {
         case 0:
-          transactionType["SmartContractDeployment"]['access_type'] = "PRIVATE";
+          transactionType["SmartContractDeployment"]["access_type"] = "PRIVATE";
           break;
         case 1:
-          transactionType["SmartContractDeployment"]['access_type'] = "PUBLIC";
+          transactionType["SmartContractDeployment"]["access_type"] = "PUBLIC";
           break;
         case 2:
-          transactionType["SmartContractDeployment"]['access_type'] = "RESTRICTED";
+          transactionType["SmartContractDeployment"]["access_type"] =
+            "RESTRICTED";
           break;
       }
 
       // contract_type
-      switch(transactionType["SmartContractDeployment"]['contract_type']){
+      switch (transactionType["SmartContractDeployment"]["contract_type"]) {
         case 0:
-          transactionType["SmartContractDeployment"]['contract_type'] = "L1XVM";
+          transactionType["SmartContractDeployment"]["contract_type"] = "L1XVM";
           break;
         case 1:
-          transactionType["SmartContractDeployment"]['contract_type'] = "EVM";
+          transactionType["SmartContractDeployment"]["contract_type"] = "EVM";
           break;
         case 2:
-          transactionType["SmartContractDeployment"]['contract_type'] = "XTALK";
+          transactionType["SmartContractDeployment"]["contract_type"] = "XTALK";
           break;
       }
-      
+
       // contract_code
-      transactionType["SmartContractDeployment"]['contract_code'] = this.#transformValue(transactionType["SmartContractDeployment"]['contract_code'], ValueTransformOption.BYTES_TO_HEX);
+      transactionType["SmartContractDeployment"]["contract_code"] =
+        this.#transformValue(
+          transactionType["SmartContractDeployment"]["contract_code"],
+          ValueTransformOption.BYTES_TO_HEX
+        );
 
       // salt
-      transactionType["SmartContractDeployment"]['salt'] = this.#transformValue(transactionType["SmartContractDeployment"]['salt'], ValueTransformOption.BYTES_TO_HEX);
+      transactionType["SmartContractDeployment"]["salt"] = this.#transformValue(
+        transactionType["SmartContractDeployment"]["salt"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
     }
 
     // SmartContractInit
     else if (transactionType["SmartContractInit"]) {
-      transactionType["SmartContractInit"]['address'] = this.#transformValue(transactionType["SmartContractInit"]['address'],ValueTransformOption.BYTES_TO_HEX);
-      transactionType["SmartContractInit"]['arguments'] = this.#transformValue(transactionType["SmartContractInit"]['arguments'],ValueTransformOption.BYTES_TO_JSON);
+      transactionType["SmartContractInit"]["address"] = this.#transformValue(
+        transactionType["SmartContractInit"]["address"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
+      transactionType["SmartContractInit"]["arguments"] = this.#transformValue(
+        transactionType["SmartContractInit"]["arguments"],
+        ValueTransformOption.BYTES_TO_JSON
+      );
     }
 
     // SmartContractFunctionCall
     else if (transactionType["SmartContractFunctionCall"]) {
-      transactionType["SmartContractFunctionCall"]['contract_address'] = this.#transformValue(transactionType["SmartContractFunctionCall"]['contract_address'],ValueTransformOption.BYTES_TO_HEX);
-      transactionType["SmartContractFunctionCall"]['function_name'] = this.#transformValue(transactionType["SmartContractFunctionCall"]['function_name'],ValueTransformOption.BYTES_TO_STRING);
-      transactionType["SmartContractFunctionCall"]['arguments'] = this.#transformValue(transactionType["SmartContractFunctionCall"]['arguments'],ValueTransformOption.BYTES_TO_JSON);
+      transactionType["SmartContractFunctionCall"]["contract_address"] =
+        this.#transformValue(
+          transactionType["SmartContractFunctionCall"]["contract_address"],
+          ValueTransformOption.BYTES_TO_HEX
+        );
+      transactionType["SmartContractFunctionCall"]["function_name"] =
+        this.#transformValue(
+          transactionType["SmartContractFunctionCall"]["function_name"],
+          ValueTransformOption.BYTES_TO_STRING
+        );
+      transactionType["SmartContractFunctionCall"]["arguments"] =
+        this.#transformValue(
+          transactionType["SmartContractFunctionCall"]["arguments"],
+          ValueTransformOption.BYTES_TO_JSON
+        );
     }
-    
+
     // CreateStakingPool
-    else if(transactionType["CreateStakingPool"]){
-      transactionType["CreateStakingPool"]['contract_instance_address'] = this.#transformValue(transactionType["CreateStakingPool"]['contract_instance_address'],ValueTransformOption.BYTES_TO_HEX);
+    else if (transactionType["CreateStakingPool"]) {
+      transactionType["CreateStakingPool"]["contract_instance_address"] =
+        this.#transformValue(
+          transactionType["CreateStakingPool"]["contract_instance_address"],
+          ValueTransformOption.BYTES_TO_HEX
+        );
     }
 
     // Stake
-    else if(transactionType["Stake"]){
-      transactionType["Stake"]['pool_address'] = this.#transformValue(transactionType["Stake"]['pool_address'],ValueTransformOption.BYTES_TO_HEX);
+    else if (transactionType["Stake"]) {
+      transactionType["Stake"]["pool_address"] = this.#transformValue(
+        transactionType["Stake"]["pool_address"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
     }
 
     // UnStake
-    else if(transactionType["UnStake"]){
-      transactionType["UnStake"]['pool_address'] = this.#transformValue(transactionType["UnStake"]['pool_address'],ValueTransformOption.BYTES_TO_HEX);
+    else if (transactionType["UnStake"]) {
+      transactionType["UnStake"]["pool_address"] = this.#transformValue(
+        transactionType["UnStake"]["pool_address"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
     }
 
-    if(transaction['signature']){
-      transaction['signature'] = this.#transformValue(transaction['signature'], ValueTransformOption.BYTES_TO_HEX);
+    if (transaction["signature"]) {
+      transaction["signature"] = this.#transformValue(
+        transaction["signature"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
     }
 
-    if(transaction['verifying_key']){
-      transaction['verifying_key'] = this.#transformValue(transaction['verifying_key'], ValueTransformOption.BYTES_TO_HEX);
+    if (transaction["verifying_key"]) {
+      transaction["verifying_key"] = this.#transformValue(
+        transaction["verifying_key"],
+        ValueTransformOption.BYTES_TO_HEX
+      );
     }
 
     transaction["transaction"] = transactionType;
@@ -216,7 +270,6 @@ class L1XCoreStubService {
    * @private
    */
   #transformTransactionEntity(data: any): GetTransactionReceiptResponse {
-
     /* 
        {
          transaction: { tx_type: 1, transaction: [Object] },
@@ -246,7 +299,6 @@ class L1XCoreStubService {
    
    */
 
-
     data["from"] = this.#transformValue(
       data["from"],
       ValueTransformOption.BYTES_TO_HEX
@@ -273,6 +325,7 @@ class L1XCoreStubService {
       timestamp: this.#handleFallbackValue(data["timestamp"]),
       from: data["from"],
       transaction_hash: data["transaction_hash"],
+      status: this.#handleFallbackValue(data["status"]),
     };
   }
 
@@ -321,29 +374,38 @@ class L1XCoreStubService {
 
     let _preparedResponse: any = {
       account_state: {
-        balance: this.#handleFallbackValue(response['account_state']["balance"]),
-        nonce: this.#handleFallbackValue(response['account_state']["nonce"]),
-        account_type: this.#handleFallbackValue(response['account_state']["account_type"])
+        balance: this.#handleFallbackValue(
+          response["account_state"]["balance"]
+        ),
+        nonce: this.#handleFallbackValue(response["account_state"]["nonce"]),
+        account_type: this.#handleFallbackValue(
+          response["account_state"]["account_type"]
+        ),
       },
     };
 
-
-
     // Formatted by L1X Decimal
-    _preparedResponse['account_state']['balance_formatted'] = parseInt(_preparedResponse['account_state']['balance']) / (10 ** L1X_NATIVE_COIN_DECIMAL);
+    _preparedResponse["account_state"]["balance_formatted"] =
+      parseInt(_preparedResponse["account_state"]["balance"]) /
+      10 ** L1X_NATIVE_COIN_DECIMAL;
 
     // Convert Exponential to String
-    _preparedResponse['account_state']['balance_formatted'] = convertExponentialToString(_preparedResponse['account_state']['balance_formatted']);
+    _preparedResponse["account_state"]["balance_formatted"] =
+      convertExponentialToString(
+        _preparedResponse["account_state"]["balance_formatted"]
+      );
 
     let _typedResponse: GetAccountStateResponse = {
       account_state: {
-        balance: _preparedResponse['account_state']['balance'],
-        nonce: parseInt(_preparedResponse['account_state']['nonce']),
-        account_type: parseInt(_preparedResponse['account_state']['account_type']),
-        balance_formatted: _preparedResponse['account_state']['balance_formatted']
-      }
-    }
-
+        balance: _preparedResponse["account_state"]["balance"],
+        nonce: parseInt(_preparedResponse["account_state"]["nonce"]),
+        account_type: parseInt(
+          _preparedResponse["account_state"]["account_type"]
+        ),
+        balance_formatted:
+          _preparedResponse["account_state"]["balance_formatted"],
+      },
+    };
 
     return _typedResponse;
   }
@@ -359,13 +421,15 @@ class L1XCoreStubService {
   async getTransactionReceipt(
     attrib: GetTransactionReceiptArg
   ): Promise<GetTransactionReceiptResponse> {
-    
     let response = await this.#client.request("getTransactionReceipt", {
       request: {
         hash: remove0xPrefix(attrib.hash),
       },
     });
 
+    if (response.transaction) {
+      response.transaction["status"] = response.status;
+    }
 
     return this.#transformTransactionEntity(response.transaction);
   }
@@ -381,9 +445,9 @@ class L1XCoreStubService {
     let _attrib = {
       ...attrib,
       tx_hash: remove0xPrefix(attrib?.tx_hash),
-    }
+    };
 
-    let response =  await this.#client.request("getEvents", {
+    let response = await this.#client.request("getEvents", {
       request: _attrib,
     });
 
@@ -405,8 +469,8 @@ class L1XCoreStubService {
   ): Promise<Array<GetTransactionReceiptResponse>> {
     let _attrib = {
       ...attrib,
-      address: remove0xPrefix(attrib?.address)
-    }
+      address: remove0xPrefix(attrib?.address),
+    };
 
     let response = await this.#client.request("getTransactionsByAccount", {
       request: _attrib,
@@ -429,11 +493,11 @@ class L1XCoreStubService {
   async getCurrentNonce(attrib: GetCurrentNonceArg): Promise<number> {
     let response = await this.#client.request("getCurrentNonce", {
       request: {
-        address: remove0xPrefix(attrib.address)
+        address: remove0xPrefix(attrib.address),
       },
     });
 
-    return parseInt(response['nonce']);
+    return parseInt(response["nonce"]);
   }
 
   /**
@@ -448,7 +512,7 @@ class L1XCoreStubService {
       ...attrib,
       pool_address: remove0xPrefix(attrib?.pool_address),
       account_address: remove0xPrefix(attrib?.account_address),
-    }
+    };
 
     return this.#client.request("getStake", {
       params: _attrib,
@@ -500,10 +564,7 @@ class L1XCoreStubService {
    * @returns {Promise<any>} - A promise that resolves to the result of the token transfer.
    * @see {@link NativeTokenTransferArg}
    */
-  async transfer(
-    attrib: NativeTokenTransferArg
-  ): Promise<TransactionResponse> {
-
+  async transfer(attrib: NativeTokenTransferArg): Promise<TransactionResponse> {
     let txPayloadForRequest = await this.getSignedPayloadForTransfer(attrib);
     return await this.broadcastTransaction(txPayloadForRequest);
   }
@@ -517,7 +578,24 @@ class L1XCoreStubService {
    * @see {@link NativeTokenTransferArg}
    * @see {@link SignedTransactionPayload}
    */
-  async getSignedPayloadForTransfer(attrib: NativeTokenTransferArg): Promise<SignedTransactionPayload> {
+  async getSignedPayloadForTransfer(
+    attrib: NativeTokenTransferArg
+  ): Promise<SignedTransactionPayload> {
+    // Convert Scientific to Decimal String
+    let _transferValue = convertExponentialToString(attrib.value);
+    // let _transferValue = (attrib.value);
+    
+    const txNativeTokenTransfer = {
+      address: remove0xPrefix(attrib.receipient_address),
+      amount: _transferValue,
+    };
+
+    const estimatedFeelimit = await this.estimateFeelimit({
+      private_key: attrib.private_key,
+      transaction: "NativeTokenTransfer",
+      payload: txNativeTokenTransfer,
+    });
+
     // Create a new instance of the L1XWalletService
     let walletService = new L1XWalletService();
 
@@ -525,16 +603,14 @@ class L1XCoreStubService {
     let wallet = await walletService.importByPrivateKey(attrib.private_key);
 
     // Set default values for transaction fee limit, next nonce, and transfer value
-    let _txFeeLimit: number = attrib?.fee_limit || 1;
+    let _txFeeLimit: number = attrib?.fee_limit || parseFloat(estimatedFeelimit.fee) || 1;
     let _txNonce: number | null = attrib?.nonce || null;
     let _txFeeLimitStr: string = _txFeeLimit.toString();
 
     let _nextNonce = 1;
     let _nextNonceStr = _nextNonce.toString();
 
-
-    if(_txNonce == null){
-     
+    if (_txNonce == null) {
       // Get the current nonce for the wallet's address
       try {
         let currentNonceResponse: GetAccountStateResponse =
@@ -542,54 +618,44 @@ class L1XCoreStubService {
             address: wallet.address,
           });
 
-        _nextNonce = currentNonceResponse['account_state']["nonce"] + 1;
+        _nextNonce = currentNonceResponse["account_state"]["nonce"] + 1;
         _nextNonceStr = _nextNonce.toString();
-
       } catch (e: any) {
         // Default to 1 if there is an issue retrieving the current nonce
         console.error("Error retrieving current nonce. Defaulting to 1.", e);
       }
-    }
-    else
-    {
+    } else {
       _nextNonce = _txNonce;
       _nextNonceStr = _txNonce.toString();
     }
-  
-
-    
-
-    // Convert Scientific to Decimal String 
-    let _transferValue = convertExponentialToString(attrib.value);
-    // let _transferValue = (attrib.value);
 
     // Construct the transaction payload for the request
     let txPayloadForRequest: SignedTransactionPayload = {
-      nonce: _nextNonceStr,
+      nonce: _nextNonceStr.toString(),
       transaction_type: {
         NativeTokenTransfer: {
-          address: hexToPlainByteArray(remove0xPrefix(attrib.receipient_address)),
+          address: hexToPlainByteArray(
+            remove0xPrefix(attrib.receipient_address)
+          ),
           amount: _transferValue,
         },
       },
-      fee_limit: _txFeeLimitStr,
+      fee_limit: _txFeeLimitStr.toString(),
       signature: [],
       verifying_key: [],
     };
 
     // Construct the transaction payload for signature
     let txPayloadForSignature: any = {
-      nonce: _nextNonce,
+      nonce: _nextNonce.toString(),
       transaction_type: {
         NativeTokenTransfer: [
           hexToPlainByteArray(remove0xPrefix(attrib.receipient_address)),
-          (_transferValue),
+          _transferValue,
         ],
       },
-      fee_limit: _txFeeLimit,
+      fee_limit: _txFeeLimit.toString(),
     };
-
-
 
     // Sign the payload
     txPayloadForRequest["signature"] = uint8ArrayToPlainByteArray(
@@ -603,18 +669,23 @@ class L1XCoreStubService {
     return txPayloadForRequest;
   }
 
-  /**  
-    * Calculate Transaction Hash
-    *
-    * @param {SignedTransactionPayload} signedPayload - The signed transaction payload to calculate the hash for.
-    * @returns {Promise<string>} - A promise that resolves to the calculated transaction hash.
-    * @see {@link SignedTransactionPayload} 
-    */
-  async calculateTransactionHash(signedPayload: SignedTransactionPayload): Promise<string> {
-
-    console.log("This method is DEPRECATED. Kindly use https://github.com/L1X-Foundation-Consensus/l1x-transaction-hash")
-    if(signedPayload['transaction_type']['NativeTokenTransfer'] == null){
-      throw new Error("Transaction Type = NativeTokenTransfer is only supported .");
+  /**
+   * Calculate Transaction Hash
+   *
+   * @param {SignedTransactionPayload} signedPayload - The signed transaction payload to calculate the hash for.
+   * @returns {Promise<string>} - A promise that resolves to the calculated transaction hash.
+   * @see {@link SignedTransactionPayload}
+   */
+  async calculateTransactionHash(
+    signedPayload: SignedTransactionPayload
+  ): Promise<string> {
+    console.log(
+      "This method is DEPRECATED. Kindly use https://github.com/L1X-Foundation-Consensus/l1x-transaction-hash"
+    );
+    if (signedPayload["transaction_type"]["NativeTokenTransfer"] == null) {
+      throw new Error(
+        "Transaction Type = NativeTokenTransfer is only supported ."
+      );
     }
 
     let _txPayload = {
@@ -633,11 +704,10 @@ class L1XCoreStubService {
 
     // console.log(_txPayload,"_txPayload");
 
-    
-
-    const keccak256Instance = keccak256.arrayBuffer(Buffer.from(JSON.stringify(_txPayload)));
-    return Buffer.from(keccak256Instance).toString('hex')
-
+    const keccak256Instance = keccak256.arrayBuffer(
+      Buffer.from(JSON.stringify(_txPayload))
+    );
+    return Buffer.from(keccak256Instance).toString("hex");
   }
 
   /**
@@ -648,9 +718,11 @@ class L1XCoreStubService {
    * @see {@link SignedTransactionPayload}
    * @see {@link TransactionResponse}
    */
-  async broadcastTransaction(txPayload: SignedTransactionPayload): Promise<TransactionResponse> {
+  async broadcastTransaction(
+    txPayload: SignedTransactionPayload
+  ): Promise<TransactionResponse> {
     // Send a request to the client to submit the transaction
-    let _response = await this.#client.request("submitTransaction", {
+    let _response = await this.#client.request("submitTransactionV2", {
       request: txPayload,
     });
 
@@ -658,6 +730,78 @@ class L1XCoreStubService {
     return {
       hash: _response.hash,
     };
+  }
+
+  /**
+   * Returns fee estimation for transaction
+   * @param args Transaction details
+   * @returns 
+   */
+  async estimateFeelimit<k extends keyof L1XVMTransaction>(
+    args: EstimateFeelimitArg<k>
+  ) {
+    let payload;
+    switch (true) {
+      case args.transaction == "NativeTokenTransfer":
+        payload = this.generateNativeTransferPayload(
+          args.payload as L1XVMTransaction["NativeTokenTransfer"]
+        );
+        break;
+
+      case args.transaction == "SmartContractFunctionCall":
+        payload = this.generateSmartContractCallPayload(
+          args.payload as L1XVMTransaction["SmartContractFunctionCall"]
+        );
+        break;
+
+      case args.transaction == "SmartContractInit":
+        payload = this.generateSmartContractInitPayload(
+          args.payload as L1XVMTransaction["SmartContractInit"]
+        );
+        break;
+
+      case args.transaction == "SmartContractDeployment":
+        payload = this.generateSmartContractDeploymentPayload(
+          args.payload as L1XVMTransaction["SmartContractDeployment"]
+        );
+        break;
+
+      case args.transaction == "CreateStakingPool":
+        payload = this.generateCreateStakingPoolPayload(
+          args.payload as L1XVMTransaction["CreateStakingPool"]
+        );
+        break;
+
+      case args.transaction == "Stake":
+        payload = this.generateStakePayload(
+          args.payload as L1XVMTransaction["Stake"]
+        );
+        break;
+
+      case args.transaction == "UnStake":
+        payload = this.generateUnStakePayload(
+          args.payload as L1XVMTransaction["UnStake"]
+        );
+        break;
+
+      default:
+        throw new Error("Invalid transaction type.");
+    };
+
+    let walletService = new L1XWalletService();
+    const wallet = await walletService.importByPrivateKey(args.private_key);
+    const verifying_key = uint8ArrayToPlainByteArray(wallet.public_key_bytes);
+   
+    let response = await this.#client.request("estimateFee", {
+      request: {
+        fee_limit: "10000000",
+        transaction_type: {
+          [args.transaction]: payload,
+        },
+        verifying_key,
+      },
+    });
+    return response as { fee: string };
   }
 }
 

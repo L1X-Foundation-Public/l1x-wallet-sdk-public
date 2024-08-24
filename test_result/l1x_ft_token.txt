@@ -1,0 +1,30 @@
+ 
+console.log
+    Error Occured while getting FT > 102,116,95,100,101,99,105,109,97,108,115 JSONRPCErrorException: smart contract call failed: Read only call failed: section '_version' not found
+        at new JSONRPCErrorException (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/models.js:55:28)
+        at JSONRPCClient.<anonymous> (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:115:66)
+        at step (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:33:23)
+        at Object.next (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:14:53)
+        at fulfilled (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:5:58)
+        at processTicksAndRejections (node:internal/process/task_queues:96:5) {
+      code: 400,
+      data: undefined
+    }
+
+      at L1XTokenFTService.<anonymous> (src/services/tokens/L1XTokenFTService.ts:124:15)
+          at Generator.throw (<anonymous>)
+
+  console.log
+    Error Occured while getting FT > 102,116,95,98,97,108,97,110,99,101,95,111,102 JSONRPCErrorException: smart contract call failed: Read only call failed: section '_version' not found
+        at new JSONRPCErrorException (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/models.js:55:28)
+        at JSONRPCClient.<anonymous> (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:115:66)
+        at step (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:33:23)
+        at Object.next (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:14:53)
+        at fulfilled (/home/mavenik/Documents/Project-Blk/l1x-wallet-sdk/node_modules/json-rpc-2.0/dist/client.js:5:58)
+        at processTicksAndRejections (node:internal/process/task_queues:96:5) {
+      code: 400,
+      data: undefined
+    }
+
+      at L1XTokenFTService.<anonymous> (src/services/tokens/L1XTokenFTService.ts:124:15)
+          at Generator.throw (<anonymous>)

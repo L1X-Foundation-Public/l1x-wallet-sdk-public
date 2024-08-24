@@ -1,0 +1,4 @@
+- Add Support for nonce in Contract > Init
+- Add Support for nonce in Contract > Call
+
+- Remove Console Log in Contract > Deploy

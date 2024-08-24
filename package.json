@@ -1,6 +1,6 @@
 {
   "name": "@l1x/l1x-wallet-sdk",
-  "version": "1.2.2",
+  "version": "2.0.1",
   "description": "The Purpose of the L1X Wallet SDK is to be able to integrate seamlessly with the L1X Ecosystem.",
   "types": "dist/esm/index.d.ts",
   "module": "dist/esm/index.js",
@@ -16,13 +16,14 @@
     "build-node": "tsc -p ./tsconfig.cjs.json && esbuild --tsconfig=./tsconfig.cjs.json --format=cjs --platform=node --bundle ./src/index.ts --outfile=./dist/cjs/index.js",
     "test": "jest",
     "generate-docs": "typedoc src/index.ts --plugin typedoc-plugin-missing-exports",
-    "build": "npm run build-web"
+    "build": "rm -rf dist && npm run build-web && npm run build-node && ./publish/run.sh"
   },
   "author": "",
   "license": "Apache License 2.0",
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.0.0",
     "@balancer-labs/sdk": "^1.1.5",
+    "@l1x/l1x-wallet-sdk": "file:dist",
     "@types/secp256k1": "^4.0.3",
     "@types/sha256": "^0.2.0",
     "buffer": "^6.0.3",
