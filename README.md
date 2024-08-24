@@ -1,4 +1,3 @@
-# Alpha Release
 # L1X Typescript SDK
 
 
